@@ -369,6 +369,105 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
+
+def export_book_file(
+    book_id: int,
+    format_extension: str,
+    library_path: Optional[str] = None
+) -> bytes:
+    """
+    Exports a book file's content to bytes using `calibredb export --to-stdout`.
+
+    Args:
+        book_id: The ID of the book to export.
+        format_extension: The desired file format extension (e.g., "epub", "mobi").
+        library_path: Optional path to the Calibre library.
+
+    Returns:
+        The raw bytes of the exported book file.
+
+    Raises:
+        FileNotFoundError: If calibredb command is not found.
+        CalibredbError: If calibredb export command fails (e.g., book or format not found).
+        ValueError: If book_id is not a positive integer or format_extension is empty.
+    """
+    if not isinstance(book_id, int) or book_id <= 0:
+        raise ValueError("Book ID must be a positive integer.")
+    if not format_extension or not isinstance(format_extension, str):
+        raise ValueError("Format extension must be a non-empty string.")
+
+    cmd = [
+        "calibredb", "export",
+        "--to-stdout",
+        "--format", format_extension.lower(),
+        str(book_id)
+    ]
+
+    if library_path:
+        cmd.extend(["--with-library", library_path])
+
+    # We need to run this command and capture binary output.
+    # The existing run_calibre_command captures text. We need a modification or a new helper.
+    # For now, let's assume run_calibre_command can be adapted or a new one is made.
+    # Let's modify the expectation for run_calibre_command for this case.
+    # It should return (stdout_bytes, stderr_text, returncode)
+
+    # To capture binary stdout, subprocess.run needs text=False and no encoding.
+    # Let's call subprocess directly here for simplicity for binary output.
+    import subprocess
+    try:
+        process = subprocess.run(
+            cmd,
+            capture_output=True,
+            check=False, # Manually check returncode
+            timeout=120  # Exporting might take time
+        )
+
+        if process.returncode != 0:
+            # Try to decode stderr for error message
+            stderr_decoded = process.stderr.decode('utf-8', errors='replace') if process.stderr else ""
+            error_message = f"calibredb export command failed for book ID {book_id} to format {format_extension} with exit code {process.returncode}."
+            # It's useful to include stderr if available
+            if stderr_decoded:
+                error_message += f" Stderr: {stderr_decoded}"
+
+            # Specific checks for common errors
+            if "no book with id" in stderr_decoded.lower() and str(book_id) in stderr_decoded.lower():
+                 raise CalibredbError(f"Book with ID {book_id} not found.", stderr=stderr_decoded, returncode=process.returncode)
+            if f"book has no {format_extension.upper()} format" in stderr_decoded.lower():
+                 raise CalibredbError(f"Book ID {book_id} does not have a {format_extension.upper()} format available for export.", stderr=stderr_decoded, returncode=process.returncode)
+
+            raise CalibredbError(error_message, stderr=stderr_decoded, returncode=process.returncode)
+
+        if not process.stdout:
+            # This can happen if the book ID is valid but the format is not available,
+            # and calibredb export doesn't error out but just produces no output.
+            # The stderr check above for "no format" should catch this ideally.
+            # If stdout is empty and no error, it's ambiguous.
+            stderr_decoded = process.stderr.decode('utf-8', errors='replace') if process.stderr else ""
+            raise CalibredbError(
+                f"calibredb export for book ID {book_id} (format {format_extension}) produced no output, but command succeeded. Stderr: {stderr_decoded}",
+                stderr=stderr_decoded,
+                returncode=process.returncode
+            )
+
+        return process.stdout # Return raw bytes
+
+    except FileNotFoundError: # For calibredb executable itself
+        # This should ideally be caught by a higher level or ensure calibredb is checked once.
+        # For now, re-raising to fit the function's contract.
+        raise FileNotFoundError("calibredb command not found. Ensure Calibre is installed and in your PATH.")
+    except subprocess.TimeoutExpired:
+        raise CalibredbError(
+            f"calibredb export command timed out for book ID {book_id}, format {format_extension}.",
+            returncode=-1 # Custom error code for timeout
+        )
+    except Exception as e: # Catch any other unexpected errors during subprocess execution
+        raise CalibredbError(
+            f"An unexpected error occurred during calibredb export for book ID {book_id}: {str(e)}",
+            returncode=-2 # Custom error code for other errors
+        )
+
     print("\nAttempting to list books from a non-existent library (should fail gracefully)...")
     try:
         books = list_books(library_path="/tmp/non_existent_calibre_library_xyz123")
