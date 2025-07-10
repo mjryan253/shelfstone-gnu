@@ -1,6 +1,6 @@
-# Calibre API
+# Shelfstone Server
 
-A Python FastAPI application that provides a RESTful API wrapper for various Calibre command-line tools, allowing you to manage e-book libraries, convert formats, edit metadata, and perform other Calibre functions programmatically.
+A Python FastAPI application that provides a RESTful API wrapper for various Calibre command-line tools, allowing you to manage e-book libraries, convert formats, edit metadata, and perform other Calibre functions programmatically. This server acts as the backend for the Shelfstone project.
 
 -----
 
@@ -45,7 +45,7 @@ A Python FastAPI application that provides a RESTful API wrapper for various Cal
 
     ```bash
     git clone https://github.com/mjryan253/shelfstone-gnu.git
-    cd calibre_api
+    cd shelfstone-gnu/calibre_api
     ```
 
 2.  **Create and Activate a Virtual Environment** (recommended):
@@ -65,14 +65,14 @@ A Python FastAPI application that provides a RESTful API wrapper for various Cal
 
 ## Running the Application
 
-Once the setup is complete, you can run the FastAPI application using Uvicorn:
+Once the setup is complete, you can run the FastAPI application using Uvicorn (ensure you are in the `calibre_api` directory):
 
 ```bash
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 6336
 ```
 
-The API will be available at `http://localhost:6336`.
-Interactive API documentation (Swagger UI) can be accessed at `http://localhost:6336/docs`.
+The Shelfstone Server API will be available at `http://localhost:6336` (internally) and typically accessed via the main application's Nginx proxy (e.g., `http://localhost:6464/api/`).
+Interactive API documentation (Swagger UI) for the direct service can be accessed at `http://localhost:6336/docs`.
 Alternative API documentation (ReDoc) can be accessed at `http://localhost:6336/redoc`.
 
 -----

@@ -13,8 +13,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="CalibreDB API",
-    description="A FastAPI wrapper for the calibredb command-line tool.",
+    title="Shelfstone Server API",
+    description="A FastAPI wrapper for Calibre command-line tools, providing the backend for Shelfstone.",
     version="0.1.0",
 )
 
@@ -359,7 +359,7 @@ from fastapi.responses import StreamingResponse
 from io import BytesIO
 
 # Helper to create a unique temporary file path
-def temp_file_path(prefix: str = "calibre_api_", suffix: str = "") -> str:
+def temp_file_path(prefix: str = "shelfstone_server_", suffix: str = "") -> str:
     return os.path.join(tempfile.gettempdir(), f"{prefix}{uuid.uuid4()}{suffix}")
 
 

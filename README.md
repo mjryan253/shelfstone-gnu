@@ -1,11 +1,11 @@
-# Calibre Web Application
+# Shelfstone
 
 ## Overview
 
 This project provides a containerized web application for interacting with a Calibre e-book library. It consists of:
 
-*   A **backend API** (built with FastAPI and Python) that uses Calibre's command-line tools (`calibredb`, `ebook-convert`, etc.) to manage and access e-book data.
-*   A **frontend web interface** (built with SvelteKit) that communicates with the backend API to provide a user-friendly experience.
+*   A **Shelfstone Server** (built with FastAPI and Python) that uses Calibre's command-line tools (`calibredb`, `ebook-convert`, etc.) to manage and access e-book data.
+*   A **Shelfstone Web** (built with SvelteKit) that communicates with the backend API to provide a user-friendly experience.
 
 The entire application is designed to be run using Docker and Docker Compose, simplifying setup and deployment.
 
@@ -77,14 +77,14 @@ This command will stop the containers. If you also want to remove the volumes (t
 
 *   **Viewing Logs:** To see the logs from the running containers (useful for troubleshooting):
     ```bash
-    docker-compose logs -f backend
-    docker-compose logs -f frontend
+    docker-compose logs -f shelfstone-server
+    docker-compose logs -f shelfstone-web
     # To see logs for all services:
     docker-compose logs -f
     ```
     Press `Ctrl+C` to stop tailing the logs.
 
-*   **Rebuilding Images:** If you make changes to the application code (backend or frontend) or the Dockerfiles, you'll need to rebuild the Docker images:
+*   **Rebuilding Images:** If you make changes to the application code (Shelfstone Server or Shelfstone Web) or the Dockerfiles, you'll need to rebuild the Docker images:
     ```bash
     docker-compose up -d --build
     ```
@@ -92,7 +92,7 @@ This command will stop the containers. If you also want to remove the volumes (t
 ## Troubleshooting
 
 *   **Port Conflicts:** If ports `6464` or `8001` are already in use on your system, you can change them in the `docker-compose.yml` file (the host-side port mapping, e.g., `"NEW_PORT:6336"`).
-*   **Calibre Issues:** If the backend has issues related to Calibre itself, check the logs of the `backend` service. Ensure Calibre is correctly installed in the Docker image (this should be handled by the `calibre_api/Dockerfile`).
-*   **Frontend Build Issues:** If the frontend fails to build, check the logs during the `docker-compose up --build` process. It might indicate missing dependencies or build script errors.
+*   **Calibre Issues:** If the Shelfstone Server has issues related to Calibre itself, check the logs of the `shelfstone-server` service. Ensure Calibre is correctly installed in the Docker image (this should be handled by the `calibre_api/Dockerfile`).
+*   **Frontend Build Issues:** If Shelfstone Web fails to build, check the logs during the `docker-compose up --build` process. It might indicate missing dependencies or build script errors.
 
 This `README.md` should provide a good starting point for users.

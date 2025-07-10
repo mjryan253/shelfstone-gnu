@@ -1,6 +1,6 @@
-# Calibre API Endpoints
+# Shelfstone Server API Endpoints
 
-This document lists the available API endpoints for the Calibre API.
+This document lists the available API endpoints for the Shelfstone Server API.
 
 ## Endpoints
 
@@ -384,7 +384,7 @@ These endpoints provide access to various general-purpose Calibre command-line t
         {
           "recipient_email": "test@example.com",
           "subject": "API Test Email",
-          "body": "Hello from the Calibre API!",
+          "body": "Hello from the Shelfstone Server API!",
           "smtp_server": "smtp.mailprovider.com",
           "smtp_port": 587,
           "smtp_username": "user@example.com",
