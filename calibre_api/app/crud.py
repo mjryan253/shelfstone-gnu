@@ -1,14 +1,21 @@
-import subprocess
 import json
-import os # Moved import os to top-level
+import os
 from typing import List, Dict, Optional, Any
 
-class CalibredbError(Exception):
-    """Custom exception for errors related to calibredb operations."""
-    def __init__(self, message, stderr=None, returncode=None):
-        super().__init__(message)
-        self.stderr = stderr
-        self.returncode = returncode
+# Use the centralized CalibreCLIError and run_calibre_command
+from .calibre_cli import CalibreCLIError, run_calibre_command
+# We can make CalibredbError a specialized version of CalibreCLIError or just use CalibreCLIError directly.
+# For now, let's define it as a subclass to maintain specificity if desired,
+# but it could also be an alias or replaced by CalibreCLIError.
+
+class CalibredbError(CalibreCLIError):
+    """Custom exception for errors related to calibredb operations,
+    inheriting from the general CalibreCLIError."""
+    def __init__(self, message, stdout=None, stderr=None, returncode=None):
+        # Ensure constructor matches CalibreCLIError or adapt as needed.
+        # CalibreCLIError takes: message, stdout=None, stderr=None, returncode=None
+        super().__init__(message, stdout=stdout, stderr=stderr, returncode=returncode)
+
 
 def list_books(library_path: Optional[str] = None, search_query: Optional[str] = None) -> List[Dict[str, Any]]:
     """
@@ -37,42 +44,25 @@ def list_books(library_path: Optional[str] = None, search_query: Optional[str] =
     if search_query:
         cmd.extend(["--search", search_query])
 
+    # FileNotFoundError and CalibreCLIError (for timeout) are handled by run_calibre_command
+    stdout, stderr, returncode = run_calibre_command(cmd, timeout=60)
+
+    if returncode != 0:
+        error_message = f"calibredb list command failed with exit code {returncode}."
+        raise CalibredbError(error_message, stdout=stdout, stderr=stderr, returncode=returncode)
+
+    if not stdout.strip():
+        # Handle cases where calibredb returns successfully but with empty output (e.g., no books found)
+        return []
+
     try:
-        # Set a timeout to prevent indefinite hanging if calibredb has issues
-        process = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            check=False, # Set to False to handle non-zero exit codes manually
-            timeout=60 # 60 seconds timeout
-        )
+        books_data = json.loads(stdout)
+        return books_data
+    except json.JSONDecodeError as e:
+        error_message = f"Failed to parse JSON output from calibredb list: {e}"
+        # Include stdout in the error for debugging, as it contains the problematic text
+        raise CalibredbError(error_message, stdout=stdout, stderr=stderr, returncode=returncode)
 
-        if process.returncode != 0:
-            error_message = f"calibredb command failed with exit code {process.returncode}."
-            # Log stderr for debugging if necessary, but don't expose it directly in HTTP responses
-            # print(f"Calibredb stderr: {process.stderr}")
-            raise CalibredbError(error_message, stderr=process.stderr, returncode=process.returncode)
-
-        if not process.stdout.strip():
-            # Handle cases where calibredb returns successfully but with empty output (e.g., no books found)
-            return []
-
-        try:
-            books_data = json.loads(process.stdout)
-            return books_data
-        except json.JSONDecodeError as e:
-            error_message = f"Failed to parse JSON output from calibredb: {e}"
-            # print(f"Problematic calibredb output: {process.stdout}")
-            raise CalibredbError(error_message)
-
-    except FileNotFoundError:
-        # This occurs if 'calibredb' executable is not in PATH
-        raise FileNotFoundError("calibredb command not found. Please ensure Calibre is installed and in your PATH.")
-    except subprocess.TimeoutExpired:
-        raise CalibredbError("calibredb command timed out.")
-    except Exception as e:
-        # Catch any other unexpected errors during subprocess execution
-        raise CalibredbError(f"An unexpected error occurred while running calibredb: {e}")
 
 def add_book(
     file_path: str,
@@ -140,66 +130,44 @@ def add_book(
     # The file path should be the last argument typically, or after --
     cmd.extend(["--", file_path])
 
-    try:
-        process = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            check=False, # Handle non-zero exit codes manually
-            timeout=120 # Increased timeout for potentially larger files or processing
-        )
+    # FileNotFoundError and CalibreCLIError (for timeout) are handled by run_calibre_command
+    stdout, stderr, returncode = run_calibre_command(cmd, timeout=120)
 
-        if process.returncode != 0:
-            error_message = f"calibredb add command failed with exit code {process.returncode}."
-            raise CalibredbError(error_message, stderr=process.stderr, returncode=process.returncode)
+    if returncode != 0:
+        error_message = f"calibredb add command failed with exit code {returncode}."
+        raise CalibredbError(error_message, stdout=stdout, stderr=stderr, returncode=returncode)
 
-        # calibredb add typically outputs "Added book IDs: X, Y, Z" or similar.
-        # Or just "Added book IDs: X" for a single book.
-        # If verbose, it might print more. We need to parse the IDs.
-        output = process.stdout.strip()
-        added_ids: List[int] = []
+    # calibredb add typically outputs "Added book IDs: X, Y, Z" or similar.
+    # Or just "Added book IDs: X" for a single book.
+    # If verbose, it might print more. We need to parse the IDs.
+    output_str = stdout.strip() # Use stdout from run_calibre_command
+    added_ids: List[int] = []
 
-        # Example output: "Added book IDs: 123" or "Added book IDs: 123, 456"
-        # Sometimes it might just output numbers directly on new lines if multiple files are added from a dir.
-        # For now, let's assume the "Added book IDs:" prefix for simplicity.
-        # A more robust parsing might be needed depending on actual calibredb versions and verbosity.
-        if "Added book IDs:" in output:
-            ids_str = output.split("Added book IDs:")[1].strip()
-            added_ids = [int(id_str.strip()) for id_str in ids_str.split(',') if id_str.strip().isdigit()]
-        elif output.isdigit(): # If it just prints an ID
-            added_ids.append(int(output))
-        else:
-            # If parsing fails, it might be an issue or different output format.
-            # For now, we'll raise an error if no IDs are found and output is unexpected.
-            # Or it could be that no books were actually added (e.g. duplicate ignored, and --duplicates not set)
-            # calibredb add might return 0 even if no book is added due to duplicate filtering.
-            # The output string "No books added" can appear.
-            if "No books added" in output:
-                return [] # No books added, return empty list
+    if "Added book IDs:" in output_str:
+        ids_str_part = output_str.split("Added book IDs:")[1].strip()
+        added_ids = [int(id_val.strip()) for id_val in ids_str_part.split(',') if id_val.strip().isdigit()]
+    elif output_str.isdigit(): # If it just prints an ID
+        added_ids.append(int(output_str))
+    else:
+        if "No books added" in output_str:
+            return [] # No books added, return empty list
 
-            # If we can't parse IDs, and it's not "No books added", it's an unexpected output.
-            # However, `calibredb add` might not always output IDs if it's not verbose.
-            # Let's assume for now that if returncode is 0, it worked, but IDs might not be easily parseable
-            # without specific verbosity flags.
-            # The command usually prints the IDs of added books to stdout.
-            # If no IDs are found, we should probably indicate this.
-            # For now, if we can't parse, we'll return an empty list and log it.
-            # A better approach might be to use a specific option for machine-readable output if available,
-            # but `calibredb add` doesn't seem to have one like `list --for-machine`.
-            print(f"Warning: Could not parse book IDs from calibredb add output: {output}")
+        # Log if output is unexpected and no IDs parsed
+        # This situation might occur if calibredb add has different output formats
+        # or if no IDs are printed despite success (e.g. not verbose enough).
+        # For now, we assume if IDs are not in the expected format and it's not "No books added",
+        # it's an empty result for added IDs unless an error code was already raised.
+        if returncode == 0: # Command succeeded but output not recognized for ID parsing
+            # Consider logging this as a warning if a logger is available/configured
+            print(f"Warning: Could not parse book IDs from calibredb add output: {output_str}")
+            # Return empty list as we couldn't confirm any IDs were added from the output.
+            # This maintains the function signature but signals no specific IDs found.
+            return []
+            # Alternatively, if any non-ID-containing output on success is an error for this function:
+            # raise CalibredbError("Failed to parse book IDs from successful calibredb add output.", stdout=stdout, stderr=stderr, returncode=returncode)
 
 
-        return added_ids
-
-    except FileNotFoundError:
-        # This occurs if 'calibredb' executable is not in PATH
-        raise FileNotFoundError("calibredb command not found. Please ensure Calibre is installed and in your PATH.")
-    except subprocess.TimeoutExpired:
-        raise CalibredbError("calibredb add command timed out.")
-    except ValueError as ve: # Catch the ValueError from os.path.exists
-        raise ve
-    except Exception as e:
-        raise CalibredbError(f"An unexpected error occurred while running calibredb add: {e}")
+    return added_ids
 
 
 def remove_book(book_id: int, library_path: Optional[str] = None) -> Dict[str, Any]:
@@ -230,44 +198,31 @@ def remove_book(book_id: int, library_path: Optional[str] = None) -> Dict[str, A
     if library_path:
         cmd.extend(["--with-library", library_path])
 
-    try:
-        process = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            check=False, # Handle non-zero exit codes manually
-            timeout=60
+    # FileNotFoundError and CalibreCLIError (for timeout) are handled by run_calibre_command
+    stdout, stderr, returncode = run_calibre_command(cmd, timeout=60)
+
+    # calibredb remove_books --for-machine should always return 0 if it runs,
+    # even if the book is not found. The success/failure is in the JSON output.
+    # However, if it fails for other reasons (e.g. library lock), returncode might be non-zero.
+    if returncode != 0:
+        error_message = f"calibredb remove_books command failed with exit code {returncode}."
+        raise CalibredbError(error_message, stdout=stdout, stderr=stderr, returncode=returncode)
+
+    if not stdout.strip():
+        # This case should ideally not happen with --for-machine if the command executed.
+        # If it does, it's an unexpected state.
+        raise CalibredbError(
+            "calibredb remove_books command returned empty stdout despite --for-machine.",
+            stdout=stdout, stderr=stderr, returncode=returncode
         )
 
-        # calibredb remove_books --for-machine should always return 0 if it runs,
-        # even if the book is not found. The success/failure is in the JSON output.
-        # However, if it fails for other reasons (e.g. library lock), returncode might be non-zero.
-        if process.returncode != 0:
-            error_message = f"calibredb remove_books command failed with exit code {process.returncode}."
-            raise CalibredbError(error_message, stderr=process.stderr, returncode=process.returncode)
+    try:
+        result_data = json.loads(stdout)
+        return result_data
+    except json.JSONDecodeError as e:
+        error_message = f"Failed to parse JSON output from calibredb remove_books: {e}. Output: {stdout}"
+        raise CalibredbError(error_message, stdout=stdout, stderr=stderr, returncode=returncode)
 
-        if not process.stdout.strip():
-            # This case should ideally not happen with --for-machine if the command executed.
-            raise CalibredbError("calibredb remove_books command returned empty output despite --for-machine.")
-
-        try:
-            result_data = json.loads(process.stdout)
-            # Example: {"ok": true, "num_removed": 1, "removed_ids": [123]}
-            # Example error: {"ok": false, "num_removed": 0, "removed_ids": [], "errors": [{"id": 123, "error": "Book not found"}]}
-            # We return the whole dict as it contains useful info.
-            return result_data
-        except json.JSONDecodeError as e:
-            error_message = f"Failed to parse JSON output from calibredb remove_books: {e}. Output: {process.stdout}"
-            raise CalibredbError(error_message)
-
-    except FileNotFoundError:
-        raise FileNotFoundError("calibredb command not found. Please ensure Calibre is installed and in your PATH.")
-    except subprocess.TimeoutExpired:
-        raise CalibredbError("calibredb remove_books command timed out.")
-    except ValueError as ve: # Catch the ValueError from book_id check
-        raise ve
-    except Exception as e:
-        raise CalibredbError(f"An unexpected error occurred while running calibredb remove_books: {e}")
 
 def set_book_metadata(book_id: int, metadata: 'SetMetadataRequest', library_path: Optional[str] = None) -> Dict[str, Any]:
     """
@@ -342,50 +297,38 @@ def set_book_metadata(book_id: int, metadata: 'SetMetadataRequest', library_path
     if library_path:
         cmd.extend(["--with-library", library_path])
 
+    # FileNotFoundError and CalibreCLIError (for timeout) are handled by run_calibre_command
+    stdout, stderr, returncode = run_calibre_command(cmd, timeout=60)
+
+    if returncode != 0:
+        # Check if stderr indicates "No book with id X found", even with non-zero exit.
+        # Some calibredb versions/operations might exit non-zero for this.
+        # However, the primary expectation for `set_metadata --for-machine` is exit 0
+        # and empty JSON `{}` if book not found or no changes.
+        # A non-zero exit usually means a more fundamental problem with the command execution itself.
+        if "No book with id" in stderr and f"id {book_id}" in stderr:
+            # If this specific error occurs with a non-zero exit, it's still a failure,
+            # but we might treat it as "not found" leading to {} if that's desired.
+            # However, run_calibre_command's contract implies non-zero is an execution problem.
+            # For now, let any non-zero exit be a CalibredbError indicating command failure.
+            # The specific wrappers or endpoint logic can then inspect stderr if needed.
+            pass # Let the generic error be raised below.
+
+        error_message = f"calibredb set_metadata command failed with exit code {returncode}."
+        raise CalibredbError(error_message, stdout=stdout, stderr=stderr, returncode=returncode)
+
+    # If command execution was successful (returncode == 0):
+    if not stdout.strip():
+        # This means book not found or no changes made, as per --for-machine docs (empty object {})
+        # It might output nothing or "{}"
+        return {}
+
     try:
-        process = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=60
-        )
-
-        if process.returncode != 0:
-            # stderr might contain "No book with id X found"
-            if "No book with id" in process.stderr and f"id {book_id}" in process.stderr:
-                 # Treat as book not found, set_metadata --for-machine outputs {} in this case.
-                 # So, the return code non-zero is likely a more severe issue.
-                 pass # Let it fall through to JSON parsing, which should be {}
-
-            error_message = f"calibredb set_metadata command failed with exit code {process.returncode}."
-            # If stderr indicates book not found, it's not necessarily a CalibredbError for the command itself,
-            # but rather for the operation's outcome. However, a non-zero exit code is an error.
-            raise CalibredbError(error_message, stderr=process.stderr, returncode=process.returncode)
-
-        if not process.stdout.strip() and process.returncode == 0 :
-             # This means book not found or no changes made, as per --for-machine docs (empty object {})
-             # It might output nothing or "{}"
-             # If it's truly empty string, assume {}
-             return {}
-
-        try:
-            result_data = json.loads(process.stdout if process.stdout.strip() else "{}")
-            # Example successful: {"title": "New Title", "tags": ["new", "tags"]}
-            # Example not found / no changes: {}
-            return result_data
-        except json.JSONDecodeError as e:
-            error_message = f"Failed to parse JSON output from calibredb set_metadata: {e}. Output: '{process.stdout}'"
-            raise CalibredbError(error_message)
-
-    except FileNotFoundError:
-        raise FileNotFoundError("calibredb command not found. Please ensure Calibre is installed and in your PATH.")
-    except subprocess.TimeoutExpired:
-        raise CalibredbError("calibredb set_metadata command timed out.")
-    except ValueError as ve: # From book_id check or no metadata fields
-        raise ve
-    except Exception as e:
-        raise CalibredbError(f"An unexpected error occurred while running calibredb set_metadata: {e}")
+        result_data = json.loads(stdout) # `stdout` should be "{}" if empty or no changes
+        return result_data
+    except json.JSONDecodeError as e:
+        error_message = f"Failed to parse JSON output from calibredb set_metadata: {e}. Output: '{stdout}'"
+        raise CalibredbError(error_message, stdout=stdout, stderr=stderr, returncode=returncode)
 
 
 if __name__ == '__main__':
