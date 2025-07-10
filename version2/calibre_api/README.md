@@ -19,7 +19,7 @@ A Python FastAPI application that provides a RESTful API wrapper for the `calibr
 
 1.  **Clone the Repository**:
     ```bash
-    git clone <repository_url> # Replace <repository_url> with the actual URL
+    git clone https://github.com/mjryan253/shelfstone-gnu.git 
     cd calibre_api
     ```
 
