@@ -100,12 +100,12 @@ async def get_books_endpoint(
         )
 
 # Example of how to run for local development:
-# uvicorn calibre_api.app.main:app --reload --port 8000
-# or python -m uvicorn calibre_api.app.main:app --reload --port 8000
+# uvicorn calibre_api.app.main:app --reload --port 6336
+# or python -m uvicorn calibre_api.app.main:app --reload --port 6336
 # Ensure calibredb is in PATH and you have a calibre library.
 # Test with:
-# http://localhost:8000/books/
-# http://localhost:8000/books/?search=science%20fiction
-# http://localhost:8000/books/?library_path=/path/to/your/calibre/library
-# http://localhost:8000/docs for Swagger UI
-# http://localhost:8000/redoc for ReDoc UI
+# http://localhost:6336/books/
+# http://localhost:6336/books/?search=science%20fiction
+# http://localhost:6336/books/?library_path=/path/to/your/calibre/library
+# http://localhost:6336/docs for Swagger UI
+# http://localhost:6336/redoc for ReDoc UI
