@@ -32,13 +32,9 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # Client-side assets (JS, CSS) are in .svelte-kit/output/client/_app/
 # Let's copy the relevant parts.
 # Nginx root will be /usr/share/nginx/html
-COPY --from=builder /app/.svelte-kit/output/prerendered /usr/share/nginx/html
-COPY --from=builder /app/.svelte-kit/output/client /usr/share/nginx/html
-
-# If there's a general 'build' directory from SvelteKit (e.g. if adapter-static was used with default path)
-# COPY --from=builder /app/build /usr/share/nginx/html
-# Or if Vite's default 'dist' was used (less likely for SvelteKit)
-# COPY --from=builder /app/dist /usr/share/nginx/html
+# With adapter-static, all output is typically in the 'build' directory.
+# Copy the entire contents of the 'build' directory to nginx's web root.
+COPY --from=builder /app/build/ /usr/share/nginx/html
 
 
 # Expose port 80 for Nginx
