@@ -39,12 +39,12 @@ A Python FastAPI application that provides a RESTful API wrapper for the `calibr
 Once the setup is complete, you can run the FastAPI application using Uvicorn:
 
 ```bash
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 6336
 ```
 
-*   The API will be available at `http://localhost:8000`.
-*   Interactive API documentation (Swagger UI) can be accessed at `http://localhost:8000/docs`.
-*   Alternative API documentation (ReDoc) can be accessed at `http://localhost:8000/redoc`.
+*   The API will be available at `http://localhost:6336`.
+*   Interactive API documentation (Swagger UI) can be accessed at `http://localhost:6336/docs`.
+*   Alternative API documentation (ReDoc) can be accessed at `http://localhost:6336/redoc`.
 
 ## API Endpoints
 

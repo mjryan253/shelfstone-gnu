@@ -36,13 +36,13 @@ This document provides instructions for AI agents working on the `calibre_api` p
 4.  **Running the FastAPI Application**:
     From the `calibre_api` root directory, run the Uvicorn server:
     ```bash
-    python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+    python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 6336
     ```
     *   `app.main:app` refers to the `app` instance of `FastAPI` in `calibre_api/app/main.py`.
     *   `--reload` enables auto-reloading on code changes (for development).
-    *   The API will be accessible at `http://localhost:8000`.
-    *   Interactive API documentation (Swagger UI) will be at `http://localhost:8000/docs`.
-    *   Alternative API documentation (ReDoc) will be at `http://localhost:8000/redoc`.
+    *   The API will be accessible at `http://localhost:6336`.
+    *   Interactive API documentation (Swagger UI) will be at `http://localhost:6336/docs`.
+    *   Alternative API documentation (ReDoc) will be at `http://localhost:6336/redoc`.
 
 ### Testing
 
@@ -66,7 +66,7 @@ This document provides instructions for AI agents working on the `calibre_api` p
 
 *   **Default Library**: If `calibredb` is configured with a default library, the API will use it when no `library_path` is specified.
 *   **Specific Library**: To target a specific Calibre library, use the `library_path` query parameter with the API endpoints.
-    *   Example: `GET http://localhost:8000/books/?library_path=/path/to/your/calibre/library`
+    *   Example: `GET http://localhost:6336/books/?library_path=/path/to/your/calibre/library`
 *   **For Manual Testing**:
     *   Ensure you have a Calibre library populated with some books.
     *   You can create one using the Calibre desktop application.
