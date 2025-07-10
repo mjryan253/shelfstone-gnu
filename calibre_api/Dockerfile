@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y \
     xz-utils \
     libstdc++6 \
     libglib2.0-0 \
-    libउंट-2.0-0 \
+    libfontconfig1 \
     libgl1-mesa-glx \
     libxcomposite1 \
     libxcursor1 \
