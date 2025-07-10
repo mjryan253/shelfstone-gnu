@@ -30,10 +30,10 @@ services:
 
   shelfstone-web:
     build:
-      context: ./web
-      dockerfile: Dockerfile
+      context: ./web-nextjs # Changed to the new Next.js frontend directory
+      dockerfile: Dockerfile # Standard Dockerfile name
     ports:
-      - "6464:80" # Exposes Shelfstone Web on host port 6464, container port 80 (Nginx)
+      - "6464:3000" # Exposes Shelfstone Web on host port 6464, container port 3000 (Next.js default)
     depends_on:
       - shelfstone-server # Ensures server is started before web, good for initial API calls
     # healthcheck: # Nginx usually starts quickly
