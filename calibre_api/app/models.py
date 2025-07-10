@@ -29,3 +29,38 @@ class Book(BaseModel):
         # by defining an alias (though not strictly needed for the current fields)
         # an_example_field_with_hyphen: Optional[str] = Field(None, alias="an-example-field-with-hyphen")
         pass
+
+class AddBookResponse(BaseModel):
+    message: str
+    added_book_ids: List[int]
+    details: Optional[str] = None
+
+class RemoveBookResponse(BaseModel):
+    message: str
+    removed_book_id: int
+    details: Optional[str] = None
+
+class SetMetadataRequest(BaseModel):
+    title: Optional[str] = None
+    authors: Optional[List[str]] = None # Will be comma-separated for CLI
+    publisher: Optional[str] = None
+    pubdate: Optional[str] = None # Expected format e.g., YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS
+    tags: Optional[List[str]] = None # Will be comma-separated for CLI
+    series: Optional[str] = None
+    series_index: Optional[float] = None
+    isbn: Optional[str] = None
+    comments: Optional[str] = None
+    rating: Optional[Union[int, float]] = None # Usually 1-5, or 0-10. Calibre uses half-stars (0-10 scale internally for 0-5 stars)
+
+    # Ensure no extra fields are allowed if that's the desired behavior
+    # class Config:
+    #     extra = "forbid"
+    # However, for flexibility, allowing extra might be fine if crud ignores them.
+    # For now, let's define what we explicitly support.
+
+class SetMetadataResponse(BaseModel):
+    message: str
+    book_id: int
+    # Potentially include a list of changed fields if --for-machine provides it and it's useful
+    # changed_fields: Optional[Dict[str, Any]] = None
+    details: Optional[str] = None
