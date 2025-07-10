@@ -1,90 +1,152 @@
 <script lang="ts">
   import EpubFetcher from '$lib/components/EpubFetcher.svelte';
   import EpubRenderer from '$lib/components/EpubRenderer.svelte';
+  import LibraryView from '$lib/components/LibraryView.svelte';
 
-  // !!! IMPORTANT: Replace this with your actual API endpoint !!!
-  // User provided base URL: http://localhost:6336/
-  // Using a placeholder path, please update this to your actual API endpoint.
-  const epubApiUrl = 'http://localhost:6336/api/get-epub/example-book-id'; // Placeholder
+  // Base URL for the API
+  const API_BASE_URL = 'http://localhost:6336';
 
   let currentEpubData: ArrayBuffer | null = null;
-  let fetcherKey = 0; // Used to re-trigger fetcher if needed, e.g., URL changes
+  let currentBookId: number | null = null;
+  let currentBookFormat: string | null = null;
+  let fetcherKey = 0; // Used to re-trigger fetcher if needed
+  let epubApiUrl = ''; // Will be set dynamically
+
+  let showReader = false; // Controls visibility of the reader section
 
   function handleEpubLoaded(event: CustomEvent<ArrayBuffer>) {
     currentEpubData = event.detail;
+    showReader = true; // Show reader once data is loaded
   }
 
   function handleEpubLoadFailed(event: CustomEvent<string>) {
     console.error("Failed to load EPUB:", event.detail);
-    // Optionally, display a more user-friendly error message on the page
+    alert(`Failed to load EPUB: ${event.detail}. Ensure the book has this format and the backend is running.`);
+    currentEpubData = null;
+    showReader = false; // Hide reader on fail
   }
 
-  // If you want to allow changing the URL and re-fetching:
-  // function fetchNewEpub(newUrl: string) {
-  //   epubApiUrl = newUrl; // This won't reactive by itself with const
-  //   currentEpubData = null; // Clear old data
-  //   fetcherKey++; // Re-creates the EpubFetcher component to trigger a new fetch
-  // }
+  function handleBookSelected(event: CustomEvent<{ bookId: number; format: string }>) {
+    const { bookId, format } = event.detail;
+    currentBookId = bookId;
+    currentBookFormat = format; // e.g., 'epub'
+
+    // Update the API URL for the EpubFetcher
+    // Ensure format is part of the path, defaulting to 'epub' if not specified by selection logic.
+    epubApiUrl = `${API_BASE_URL}/books/${currentBookId}/file/${currentBookFormat || 'epub'}`;
+
+    currentEpubData = null; // Clear previous book data
+    fetcherKey++; // Re-render EpubFetcher to trigger a new fetch
+    // showReader = true; // Optionally, show reader immediately or wait for load
+  }
 </script>
 
 <svelte:head>
-  <title>ePub Reader</title>
+  <title>ShelfStone - ePub Reader & Library</title>
 </svelte:head>
 
-<main>
-  <h1>ePub Viewer</h1>
+<div class="app-container">
+  <header class="app-header">
+    <h1>ShelfStone</h1>
+  </header>
 
-  <!--
-    You might want to add an input field here to set/change epubApiUrl
-    and then call a function like fetchNewEpub.
-    For now, it uses the hardcoded placeholder.
-  -->
-
-  {#key fetcherKey}
-    <EpubFetcher
-      apiUrl={epubApiUrl}
-      on:epubloaded={handleEpubLoaded}
-      on:epubloadfailed={handleEpubLoadFailed}
-    />
-  {/key}
-
-  {#if currentEpubData}
-    <div class="epub-renderer-wrapper">
-      <EpubRenderer epubData={currentEpubData} />
+  <main class="main-content">
+    <div class="library-pane">
+      <LibraryView on:bookselected={handleBookSelected} />
     </div>
-  {:else}
-    <p class="status-message">
-      Waiting for ePub data to be loaded...
-      Make sure the API URL is correct and the server is running.
-      Current API URL: <code>{epubApiUrl}</code>
-    </p>
-  {/if}
-</main>
+
+    <div class="reader-pane">
+      {#if epubApiUrl && fetcherKey > 0} <!-- Only show fetcher if a book has been selected -->
+        {#key fetcherKey}
+          <EpubFetcher
+            apiUrl={epubApiUrl}
+            on:epubloaded={handleEpubLoaded}
+            on:epubloadfailed={handleEpubLoadFailed}
+          />
+        {/key}
+      {/if}
+
+      {#if showReader && currentEpubData}
+        <div class="epub-renderer-wrapper">
+          <EpubRenderer epubData={currentEpubData} />
+        </div>
+      {:else if epubApiUrl && !currentEpubData && fetcherKey > 0}
+        <p class="status-message">Loading selected book...</p>
+      {:else if !epubApiUrl}
+         <p class="status-message">Select a book from the library to start reading.</p>
+      {/if}
+    </div>
+  </main>
+</div>
 
 <style>
-  main {
-    font-family: sans-serif;
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 20px;
+  :global(body) {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+      Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+  }
+
+  .app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  .app-header {
+    background-color: #333;
+    color: white;
+    padding: 1rem 1.5rem;
     text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .app-header h1 {
+    margin: 0;
+    font-size: 1.8rem;
+  }
+
+  .main-content {
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden; /* Prevent overall page scroll, panes will scroll */
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .library-pane {
+    flex: 0 0 350px; /* Fixed width for library, adjust as needed */
+    overflow-y: auto; /* Scroll for library list if it overflows */
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  }
+
+  .reader-pane {
+    flex-grow: 1;
+    display: flex; /* Use flex to center status messages */
+    flex-direction: column; /* Stack fetcher/renderer vertically */
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    padding: 1rem;
+    overflow-y: auto; /* Allow reader content to scroll */
   }
 
   .epub-renderer-wrapper {
-    margin-top: 20px;
-    border: 1px solid #eee;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    /* Wrapper for the renderer, takes available space */
+    flex-grow: 1;
+    border: 1px solid #eee; /* Optional border around renderer area */
+    min-height: 0; /* Important for flex children that scroll */
   }
 
   .status-message {
-    margin-top: 30px;
+    margin: auto; /* Center message in reader-pane when no book is loaded/loading */
     font-style: italic;
     color: #555;
+    text-align: center;
   }
 
-  code {
-    background-color: #f0f0f0;
-    padding: 2px 5px;
-    border-radius: 3px;
-  }
+  /* Ensure EpubRenderer component itself handles its internal scrolling and layout */
 </style>

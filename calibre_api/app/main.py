@@ -355,6 +355,8 @@ from .models import (
     EbookCheckResponse # EbookCheckRequest handled by query param + file upload
 )
 import uuid # For generating unique filenames
+from fastapi.responses import StreamingResponse
+from io import BytesIO
 
 # Helper to create a unique temporary file path
 def temp_file_path(prefix: str = "calibre_api_", suffix: str = "") -> str:
@@ -954,6 +956,76 @@ async def lrf_to_lrs_endpoint(input_file: UploadFile = File(...)):
     finally:
         if os.path.exists(temp_input_path): os.remove(temp_input_path)
         # BackgroundTask needed for temp_output_path cleanup after FileResponse
+
+
+# Endpoint to serve a book file directly
+@app.get("/books/{book_id}/file/{format_extension}", tags=["Books"])
+async def get_book_file_endpoint(
+    book_id: int,
+    format_extension: str,
+    library_path: Optional[str] = Query(None, description="Path to the Calibre library. If not provided, calibredb's default will be used.")
+):
+    """
+    Exports and returns a book file directly.
+    Uses `calibredb export --to-stdout --format {format_extension} {book_id}`.
+    """
+    try:
+        logger.info(f"Request to export book ID: {book_id}, Format: {format_extension}, Library: '{library_path}'")
+
+        if book_id <= 0:
+            raise HTTPException(status_code=400, detail="Book ID must be a positive integer.")
+        if not format_extension:
+            raise HTTPException(status_code=400, detail="Format extension must be provided.")
+
+        # Call the CRUD function to get the book file bytes
+        file_bytes = crud.export_book_file(
+            book_id=book_id,
+            format_extension=format_extension,
+            library_path=library_path
+        )
+
+        # Determine media type based on format extension
+        media_type = "application/octet-stream" # Default
+        if format_extension.lower() == "epub":
+            media_type = "application/epub+zip"
+        elif format_extension.lower() == "mobi":
+            media_type = "application/x-mobipocket-ebook"
+        elif format_extension.lower() == "pdf":
+            media_type = "application/pdf"
+        elif format_extension.lower() == "txt":
+            media_type = "text/plain"
+        # Add more common types as needed
+
+        # Use StreamingResponse to send the bytes
+        return StreamingResponse(BytesIO(file_bytes), media_type=media_type, headers={
+            "Content-Disposition": f"attachment; filename=\"book_{book_id}.{format_extension.lower()}\""
+        })
+
+    except ValueError as e: # From crud validation
+        logger.warning(f"ValueError in get_book_file_endpoint for ID {book_id}, format {format_extension}: {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))
+    except FileNotFoundError as e: # For calibredb executable not found in crud
+        logger.error(f"calibredb not found during export: {e}", exc_info=True)
+        raise HTTPException(status_code=503, detail="calibredb command not found. Ensure Calibre is installed.")
+    except crud.CalibredbError as e: # Specific errors from calibredb export
+        logger.error(f"CalibredbError during export for book ID {book_id}, format {format_extension}: {e.args[0]}. Stderr: {e.stderr}", exc_info=True)
+        status_code = 500
+        detail_message = f"Error exporting book: {e.args[0]}"
+        if "not found" in e.args[0].lower() or (e.stderr and "no book with id" in e.stderr.lower()):
+            status_code = 404
+            detail_message = f"Book with ID {book_id} not found."
+        elif "does not have a" in e.args[0].lower() and "format available for export" in e.args[0].lower():
+            status_code = 404 # Or 400, as it's a format availability issue for a known book
+            detail_message = f"Book ID {book_id} does not have format '{format_extension}'."
+        elif "timed out" in e.args[0].lower():
+            status_code = 408 # Request Timeout
+
+        raise HTTPException(status_code=status_code, detail=detail_message)
+    except HTTPException: # Re-raise HTTPExceptions we've already crafted (e.g. from initial validation)
+        raise
+    except Exception as e:
+        logger.error(f"An unexpected error occurred in get_book_file_endpoint for ID {book_id}, format {format_extension}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"An unexpected server error occurred: {str(e)}")
 
 
 @app.get("/calibre/plugins/", response_model=PluginListResponse, tags=["Calibre CLI"])
