@@ -3,8 +3,8 @@
   import EpubRenderer from '$lib/components/EpubRenderer.svelte';
   import LibraryView from '$lib/components/LibraryView.svelte';
 
-  // Base URL for the API
-  const API_BASE_URL = 'http://localhost:6336';
+  // Base URL for the API - relative path to use Nginx proxy
+  const API_BASE_URL = '/api';
 
   let currentEpubData: ArrayBuffer | null = null;
   let currentBookId: number | null = null;
@@ -42,12 +42,12 @@
 </script>
 
 <svelte:head>
-  <title>ShelfStone - ePub Reader & Library</title>
+  <title>Shelfstone - ePub Reader & Library</title>
 </svelte:head>
 
 <div class="app-container">
   <header class="app-header">
-    <h1>ShelfStone</h1>
+    <h1>Shelfstone</h1>
   </header>
 
   <main class="main-content">

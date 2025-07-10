@@ -1,12 +1,12 @@
 version: '3.8'
 
 services:
-  backend:
+  shelfstone-server:
     build:
       context: ./calibre_api
       dockerfile: Dockerfile
     ports:
-      - "8001:6336" # Exposes backend on host port 8001, container port 6336
+      - "8001:6336" # Exposes Shelfstone Server on host port 8001, container port 6336
     volumes:
       # Optional: Mount a volume for Calibre library persistence.
       # Create a directory e.g., './calibre_library_data' on your host machine first.
@@ -30,14 +30,14 @@ services:
     #   start_period: 30s # Give Calibre time to initialize if needed
     restart: unless-stopped
 
-  frontend:
+  shelfstone-web:
     build:
       context: ./web
       dockerfile: Dockerfile
     ports:
-      - "6464:80" # Exposes frontend on host port 6464, container port 80 (Nginx)
+      - "6464:80" # Exposes Shelfstone Web on host port 6464, container port 80 (Nginx)
     depends_on:
-      - backend # Ensures backend is started before frontend, good for initial API calls
+      - shelfstone-server # Ensures server is started before web, good for initial API calls
     # healthcheck: # Nginx usually starts quickly
     #   test: ["CMD", "curl", "-f", "http://localhost:80"]
     #   interval: 30s
