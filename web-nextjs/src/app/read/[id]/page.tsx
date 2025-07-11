@@ -32,7 +32,7 @@ export default function ReadPage({ params }: ReadPageProps) {
       setLoading(true);
       try {
         // Fetch book metadata to get title and available formats
-        const response = await fetch(`http://localhost:8001/books/?search=ids:${id}`);
+        const response = await fetch(`http://localhost:6336/books/?search=ids:${id}`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data: Book[] = await response.json();
 
@@ -40,15 +40,11 @@ export default function ReadPage({ params }: ReadPageProps) {
           const fetchedBook = data[0];
           setBook(fetchedBook);
 
-          // Construct a *hypothetical* URL to the EPUB file.
-          // THIS WILL LIKELY NOT WORK without a backend endpoint that serves book files.
-          // Example: http://localhost:8001/books/{id}/download?format=epub
-          // For now, we'll check if EPUB is listed in formats and make a guess.
+          // Construct the URL to the EPUB file using the backend endpoint.
           const formats = fetchedBook.formats?.toLowerCase().split(',') || [];
           if (formats.includes('epub')) {
-            // THIS IS A PLACEHOLDER URL
-            setBookFileUrl(`http://localhost:8001/books/${fetchedBook.id}/download?format=epub`);
-             setError("Note: The book URL is a placeholder and likely won't load the book. A backend endpoint to serve book files is required.");
+            setBookFileUrl(`http://localhost:6336/books/${fetchedBook.id}/file/epub`);
+            setError(null); // Clear any previous error message
           } else {
             setError("EPUB format not found for this book. Other formats are not yet supported by this viewer.");
           }

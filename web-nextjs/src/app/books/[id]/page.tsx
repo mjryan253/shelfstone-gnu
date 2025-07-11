@@ -63,7 +63,7 @@ export default function BookDetailsPage({ params }: BookDetailsPageProps) {
         // Example: `search=id:123`. This needs to be tested if `calibredb list` supports `id:` prefix.
         // Calibre's search syntax is powerful, `ids:123` or `id:123` might work.
         // Let's try with `search=ids:${id}` as `ids` is a common Calibre search field.
-        const response = await fetch(`http://localhost:8001/books/?search=ids:${id}`);
+        const response = await fetch(`http://localhost:6336/books/?search=ids:${id}`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -91,7 +91,7 @@ export default function BookDetailsPage({ params }: BookDetailsPageProps) {
     if (!book) return;
     if (window.confirm(`Are you sure you want to delete "${book.title}"?`)) {
       try {
-        const response = await fetch(`http://localhost:8001/books/${book.id}/`, {
+        const response = await fetch(`http://localhost:6336/books/${book.id}/`, {
           method: 'DELETE',
         });
         if (!response.ok) {

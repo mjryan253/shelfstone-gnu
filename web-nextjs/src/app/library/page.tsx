@@ -45,7 +45,7 @@ export default function LibraryPage() {
         // The API supports a `search` query parameter.
         // For now, we fetch all and filter/sort client-side.
         // Later, we can implement server-side search by passing `searchTerm` to this URL.
-        const apiUrl = `http://localhost:8001/books/`;
+        const apiUrl = `http://localhost:6336/books/`;
         const response = await fetch(apiUrl);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

@@ -70,7 +70,7 @@ export default function EditBookPage({ params }: EditBookPageProps) {
       setLoading(true);
       try {
         // Fetch existing book data to prefill the form
-        const response = await fetch(`http://localhost:8001/books/?search=ids:${id}`);
+        const response = await fetch(`http://localhost:6336/books/?search=ids:${id}`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data: Book[] = await response.json();
         if (data.length > 0) {
@@ -167,7 +167,7 @@ export default function EditBookPage({ params }: EditBookPageProps) {
 
 
     try {
-      const response = await fetch(`http://localhost:8001/books/${book.id}/metadata/`, {
+      const response = await fetch(`http://localhost:6336/books/${book.id}/metadata/`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
