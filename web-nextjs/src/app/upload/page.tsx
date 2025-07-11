@@ -38,7 +38,7 @@ export default function UploadPage() {
     // Add other optional parameters from API docs as needed, e.g., library_path, duplicates, automerge
 
     try {
-      const response = await fetch('http://localhost:8001/books/add/', {
+      const response = await fetch('http://localhost:6336/books/add/', {
         method: 'POST',
         body: formData,
         // Headers are not typically needed for FormData; browser sets Content-Type to multipart/form-data
