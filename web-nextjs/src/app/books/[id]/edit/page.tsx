@@ -34,11 +34,9 @@ type BookMetadataFormData = {
   rating?: number;
 };
 
-type EditBookPageProps = {
-  params: {
-    id: string; // Book ID from the route
-  };
-};
+// No direct props type needed for the page component itself with App Router,
+// params are accessed via props.params
+// type EditBookPageProps = { params: { id: string } };
 
 // Helper to convert comma/space separated string to array of strings for authors/tags
 const stringToList = (str: string | undefined): string[] => {
@@ -52,8 +50,12 @@ const authorsToStringForForm = (authorsStr?: string): string => {
   return authorsStr.split(' & ').join(', ');
 };
 
+type PageProps = {
+    params: { id: string };
+    searchParams?: { [key: string]: string | string[] | undefined };
+}
 
-export default function EditBookPage({ params }: { params: { id: string } }) {
+export default function EditBookPage({ params }: PageProps) {
   const { id } = params;
   const router = useRouter();
   const [book, setBook] = useState<Book | null>(null);
