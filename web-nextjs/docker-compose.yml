@@ -6,9 +6,3 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    networks:
-      - shelfstone-net
-
-networks:
-  shelfstone-net:
-    driver: bridge

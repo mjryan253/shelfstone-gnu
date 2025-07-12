@@ -7,9 +7,3 @@ services:
       - "6336:8080"
     volumes:
       - ./calibre_library:/calibre-library
-    networks:
-      - shelfstone-net
-
-networks:
-  shelfstone-net:
-    driver: bridge
