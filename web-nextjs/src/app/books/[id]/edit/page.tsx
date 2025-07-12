@@ -50,12 +50,7 @@ const authorsToStringForForm = (authorsStr?: string): string => {
   return authorsStr.split(' & ').join(', ');
 };
 
-type PageProps = {
-    params: { id: string };
-    searchParams?: { [key: string]: string | string[] | undefined };
-}
-
-export default function EditBookPage({ params }: PageProps) {
+export default function EditBookPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const router = useRouter();
   const [book, setBook] = useState<Book | null>(null);
