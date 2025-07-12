@@ -10,7 +10,7 @@ WORKDIR /app
 # Copy package.json and lock file
 COPY package.json ./
 # COPY pnpm-lock.yaml ./  # If using pnpm
-COPY package-lock.json* ./ # If using npm or if package-lock.json exists
+COPY package-lock.json ./ 
 
 # Install dependencies
 # RUN pnpm install --frozen-lockfile # If using pnpm
