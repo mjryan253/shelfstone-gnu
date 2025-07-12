@@ -25,6 +25,9 @@ RUN apt-get update && apt-get install -y \
     libegl1 \
     libxcb-cursor0 \
     libopengl0 \
+    build-essential \
+    gcc \
+    libc6-dev \
     # Add any other specific dependencies Calibre might need on a slim image
  && wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin \
  && apt-get clean \

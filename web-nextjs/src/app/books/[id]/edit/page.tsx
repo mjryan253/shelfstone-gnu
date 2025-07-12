@@ -53,7 +53,7 @@ const authorsToStringForForm = (authorsStr?: string): string => {
 };
 
 
-export default function EditBookPage({ params }: EditBookPageProps) {
+export default function EditBookPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const router = useRouter();
   const [book, setBook] = useState<Book | null>(null);
