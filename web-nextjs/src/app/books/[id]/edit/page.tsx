@@ -44,15 +44,10 @@ const stringToList = (str: string | undefined): string[] => {
   return str.split(/[,&]+/).map(item => item.trim()).filter(item => item.length > 0);
 };
 
-// Helper to convert Calibre's "Author1 & Author2" string to a comma-separated string for form input
-const authorsToStringForForm = (authorsStr?: string): string => {
-  if (!authorsStr) return '';
-  return authorsStr.split(' & ').join(', ');
-};
 
 export default function EditBookPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  const router = useRouter();
+  useRouter();
   const [book, setBook] = useState<Book | null>(null);
   const [formData, setFormData] = useState<Partial<BookMetadataFormData>>({});
   const [loading, setLoading] = useState<boolean>(true);
