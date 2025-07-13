@@ -1,6 +1,6 @@
 import subprocess
 import logging
-from typing import Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 # Configure basic logging
 logger = logging.getLogger(__name__)
@@ -1024,17 +1024,17 @@ def list_calibre_plugins() -> Dict[str, Any]:
         # A simpler approach: if line doesn't start with whitespace, it's a new plugin header.
 
         if not line.startswith(' '): # Assuming plugin headers are not indented
-            parts = line.split('(')
+            parts = line.split(' (')
             plugin_name_full = parts[0].strip()
             current_plugin_name = plugin_name_full
             plugins[current_plugin_name] = {'name': plugin_name_full, 'version': None, 'author': None, 'description_parts': []}
 
             if len(parts) > 1:
-                version_author_part = parts[1].split(')')
+                version_author_part = parts[1].split(') by ')
                 if len(version_author_part) > 0:
                     plugins[current_plugin_name]['version'] = version_author_part[0].strip()
-                if " by " in version_author_part[1]:
-                     plugins[current_plugin_name]['author'] = version_author_part[1].split(" by ")[1].strip()
+                if len(version_author_part) > 1:
+                     plugins[current_plugin_name]['author'] = version_author_part[1].strip()
 
         elif current_plugin_name and line: # Indented line, part of current plugin's description
             plugins[current_plugin_name]['description_parts'].append(line)
@@ -1197,10 +1197,10 @@ def send_email_with_calibre_smtp(
     recipient_email: str,
     subject: str,
     body: str,
-    attachment_path: Optional[str] = None,
-    # SMTP server configuration - these would ideally come from secure config
     smtp_server: str, # e.g., "smtp.example.com"
     smtp_port: int,   # e.g., 587
+    attachment_path: Optional[str] = None,
+    # SMTP server configuration - these would ideally come from secure config
     smtp_username: Optional[str] = None,
     smtp_password: Optional[str] = None, # Sensitive!
     smtp_encryption: str = 'tls', # 'tls', 'ssl', or 'none'

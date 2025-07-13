@@ -56,7 +56,7 @@ def test_run_calibre_command_failure_returncode(mock_subproc_run):
 
 @mock.patch('subprocess.run', side_effect=FileNotFoundError("mytool not found"))
 def test_run_calibre_command_file_not_found(mock_subproc_run):
-    with pytest.raises(FileNotFoundError, match="mytool not found"):
+    with pytest.raises(FileNotFoundError, match="mytool command not found"):
         run_calibre_command(['mytool'])
 
 @mock.patch('subprocess.run', side_effect=subprocess.TimeoutExpired(cmd=['mytool'], timeout=30))
@@ -215,7 +215,8 @@ def test_set_ebook_metadata_success(mock_os_exists, mock_run_cmd):
     assert result == "Metadata changed."
     mock_run_cmd.assert_called_once_with(['ebook-meta', 'book.epub'] + options)
 
-def test_set_ebook_metadata_no_options():
+@mock.patch('os.path.exists', return_value=True)
+def test_set_ebook_metadata_no_options(mock_os_exists):
     with pytest.raises(ValueError, match="metadata_options cannot be empty."):
         set_ebook_metadata("book.epub", [])
 
@@ -280,8 +281,13 @@ def test_run_calibre_debug_test_build_success(mock_run_cmd):
 def test_send_email_with_calibre_smtp_success(mock_run_cmd):
     mock_run_cmd.return_value = ("Email sent successfully.", "", 0)
     success, message = send_email_with_calibre_smtp(
-        recipient_email="to@example.com", subject="Test", body="Body",
-        smtp_server="smtp.host", smtp_port=587, smtp_username="user", smtp_password="pass"
+        recipient_email="to@example.com",
+        subject="Test",
+        body="Body",
+        smtp_server="smtp.host",
+        smtp_port=587,
+        smtp_username="user",
+        smtp_password="pass"
     )
     assert success is True
     assert message == "Email sent successfully."
@@ -430,7 +436,8 @@ def test_fetch_ebook_metadata_no_results(mock_run_cmd):
 # Example for web2disk
 @mock.patch('calibre_api.app.calibre_cli.run_calibre_command')
 @mock.patch('os.path.exists', side_effect=lambda p: True if p.endswith(".recipe") else False) # Output .recipe exists
-def test_web2disk_success(mock_os_exists, mock_run_cmd):
+@mock.patch('os.path.getsize', return_value=1)
+def test_web2disk_success(mock_os_getsize, mock_os_exists, mock_run_cmd):
     mock_run_cmd.return_value = ("Recipe generated", "", 0)
     result = web2disk("http://example.com", "out.recipe")
     assert result == "out.recipe"

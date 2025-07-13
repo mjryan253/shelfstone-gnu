@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 class Book(BaseModel):
     id: int

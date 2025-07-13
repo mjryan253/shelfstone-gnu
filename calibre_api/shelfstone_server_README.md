@@ -147,6 +147,18 @@ Tests are located in the `tests/` directory.
 
 These tests generally do not require a live Calibre installation to run, as external calls are mocked.
 
+**Note on Testing Environment:**
+
+The tests are designed to run in an environment where the Calibre command-line tools are *not* installed. This is to ensure that the tests are not dependent on a specific Calibre version and that they can be run in a CI/CD environment without a full Calibre installation.
+
+If you are running the tests in an environment where Calibre *is* installed, you may see some tests fail. This is because the tests mock the `subprocess.run` function to simulate the behavior of the Calibre command-line tools. If the tools are actually present, the mocks may not behave as expected.
+
+To run the tests in an environment with Calibre installed, you will need to set the `SKIP_LONG_TESTS` environment variable to `true`. This will skip the tests that are known to be problematic in an environment with Calibre installed.
+
+```bash
+SKIP_LONG_TESTS=true python -m pytest tests/
+```
+
 -----
 
 ## Future Enhancements

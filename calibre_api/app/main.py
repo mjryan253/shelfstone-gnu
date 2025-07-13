@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query, File, UploadFile, Form
+from fastapi import Body, FastAPI, HTTPException, Query, File, UploadFile, Form
 from typing import List, Optional, Any
 import logging
 import shutil
@@ -396,7 +396,7 @@ async def get_calibre_version_endpoint():
         raise HTTPException(status_code=503, detail="Calibre command not found. Ensure Calibre is installed and in PATH.")
     except calibre_cli.CalibreCLIError as e:
         logger.error(f"CalibreCLIError getting version: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get Calibre version: {e.message}")
+            raise HTTPException(status_code=500, detail=f"Failed to get Calibre version: {e}")
     except Exception as e:
         logger.error(f"Unexpected error getting Calibre version: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
@@ -850,14 +850,14 @@ async def fetch_ebook_metadata_endpoint(
         raise HTTPException(status_code=503, detail="fetch-ebook-metadata command not found.")
     except calibre_cli.CalibreCLIError as e:
         logger.warning(f"CalibreCLIError fetching metadata: {e}", exc_info=True)
-        if "No metadata found" in e.message:
+            if "No metadata found" in str(e):
             return FetchMetadataResponse(
                 message="No metadata found for the given criteria.",
                 search_criteria=query_criteria,
                 metadata=None,
                 details=e.stderr
             )
-        raise HTTPException(status_code=500, detail=f"Failed to fetch metadata: {e.message} - Stderr: {e.stderr}")
+            raise HTTPException(status_code=500, detail=f"Failed to fetch metadata: {e} - Stderr: {e.stderr}")
     except Exception as e:
         logger.error(f"Unexpected error fetching metadata: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"An unexpected server error occurred: {str(e)}")

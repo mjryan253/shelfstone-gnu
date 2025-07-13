@@ -1,13 +1,15 @@
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, Mock
 import subprocess
 import json
+import os
 
 # Adjust import path if necessary based on your project structure
 # Assuming your main app is in calibre_api/app/main.py
 from calibre_api.app.main import app
 from calibre_api.app.crud import CalibredbError
+from calibre_api.app.calibre_cli import CalibreCLIError
 
 # client = TestClient(app) # Initialize client inside a fixture or test for better isolation
 
@@ -87,7 +89,7 @@ SAMPLE_CALIBREDB_JSON_OUTPUT_STRINGS = [
 
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_list_books_success(client, mock_subprocess_run):
+def test_list_books_success(mock_subprocess_run, client):
     # Mock subprocess.run to return a successful response
     mock_process = MagicMock()
     mock_process.returncode = 0
@@ -110,7 +112,7 @@ def test_list_books_success(client, mock_subprocess_run):
     )
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_list_books_success_with_string_parsing(client, mock_subprocess_run):
+def test_list_books_success_with_string_parsing(mock_subprocess_run, client):
     mock_process = MagicMock()
     mock_process.returncode = 0
     mock_process.stdout = json.dumps(SAMPLE_CALIBREDB_JSON_OUTPUT_STRINGS)
@@ -129,7 +131,7 @@ def test_list_books_success_with_string_parsing(client, mock_subprocess_run):
 
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_list_books_with_search_and_library_path(client, mock_subprocess_run):
+def test_list_books_with_search_and_library_path(mock_subprocess_run, client):
     mock_process = MagicMock()
     mock_process.returncode = 0
     mock_process.stdout = json.dumps([SAMPLE_CALIBREDB_JSON_OUTPUT_ALL_FIELDS[0]]) # Return only one book
@@ -151,7 +153,7 @@ def test_list_books_with_search_and_library_path(client, mock_subprocess_run):
     )
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_list_books_calibredb_not_found(client, mock_subprocess_run):
+def test_list_books_calibredb_not_found(mock_subprocess_run, client):
     # Mock subprocess.run to raise FileNotFoundError
     mock_subprocess_run.side_effect = FileNotFoundError("calibredb not found")
 
@@ -160,7 +162,7 @@ def test_list_books_calibredb_not_found(client, mock_subprocess_run):
     assert "calibredb command not found" in response.json()["detail"]
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_list_books_calibredb_command_error(client, mock_subprocess_run):
+def test_list_books_calibredb_command_error(mock_subprocess_run, client):
     # Mock subprocess.run to simulate a command error
     mock_process = MagicMock()
     mock_process.returncode = 1 # Non-zero exit code
@@ -177,7 +179,7 @@ def test_list_books_calibredb_command_error(client, mock_subprocess_run):
 
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_list_books_calibredb_json_decode_error(client, mock_subprocess_run):
+def test_list_books_calibredb_json_decode_error(mock_subprocess_run, client):
     mock_process = MagicMock()
     mock_process.returncode = 0
     mock_process.stdout = "This is not JSON" # Invalid JSON output
@@ -191,7 +193,7 @@ def test_list_books_calibredb_json_decode_error(client, mock_subprocess_run):
     assert "Failed to parse JSON output from calibredb" in json_response["detail"]
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_list_books_empty_result_from_calibredb(client, mock_subprocess_run):
+def test_list_books_empty_result_from_calibredb(mock_subprocess_run, client):
     mock_process = MagicMock()
     mock_process.returncode = 0
     mock_process.stdout = "[]" # Empty list
@@ -203,7 +205,7 @@ def test_list_books_empty_result_from_calibredb(client, mock_subprocess_run):
     assert response.json() == []
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_list_books_calibredb_timeout(client, mock_subprocess_run):
+def test_list_books_calibredb_timeout(mock_subprocess_run, client):
     mock_subprocess_run.side_effect = subprocess.TimeoutExpired(cmd="calibredb list", timeout=1)
 
     response = client.get("/books/")
@@ -213,7 +215,7 @@ def test_list_books_calibredb_timeout(client, mock_subprocess_run):
     assert "calibredb command timed out" in json_response["detail"]
 
 @patch('calibre_api.app.main.list_books') # Patched at main where it's called
-def test_list_books_unexpected_error_in_endpoint(client, mock_main_list_books):
+def test_list_books_unexpected_error_in_endpoint(mock_main_list_books, client):
     # This tests if the endpoint's generic exception handler works
     # This mock will intercept the call made from within the get_books_endpoint in main.py
     mock_main_list_books.side_effect = Exception("A very unexpected error!")
@@ -226,7 +228,7 @@ def test_list_books_unexpected_error_in_endpoint(client, mock_main_list_books):
 
 # Test for malformed book data from calibredb that fails Pydantic validation in the endpoint
 @patch('calibre_api.app.crud.subprocess.run')
-def test_list_books_malformed_book_data_from_calibredb(client, mock_subprocess_run):
+def test_list_books_malformed_book_data_from_calibredb(mock_subprocess_run, client):
     malformed_book_data = [
         {
             # "id": 1, # Missing required 'id' field
@@ -263,8 +265,8 @@ from unittest.mock import Mock # Ensure Mock is imported if not already
 @patch('calibre_api.app.crud.os.path.exists', return_value=True) # Mock os.path.exists for book file in crud
 @patch('calibre_api.app.crud.subprocess.run')
 def test_add_book_endpoint_success(
-    client, mock_subprocess_run, mock_crud_os_path_exists, mock_main_os_path_exists,
-    mock_rmtree, mock_copyfileobj, mock_mkdtemp
+    mock_subprocess_run, mock_crud_os_path_exists, mock_main_os_path_exists,
+    mock_rmtree, mock_copyfileobj, mock_mkdtemp, client
 ):
     mock_process = MagicMock()
     mock_process.returncode = 0
@@ -323,8 +325,8 @@ def test_add_book_endpoint_success(
 @patch('calibre_api.app.crud.os.path.exists', return_value=True)
 @patch('calibre_api.app.crud.subprocess.run')
 def test_add_book_endpoint_no_ids_returned(
-    client, mock_subprocess_run, mock_crud_os_path_exists, mock_main_os_path_exists,
-    mock_rmtree, mock_copyfileobj, mock_mkdtemp
+    mock_subprocess_run, mock_crud_os_path_exists, mock_main_os_path_exists,
+    mock_rmtree, mock_copyfileobj, mock_mkdtemp, client
 ):
     mock_process = MagicMock()
     mock_process.returncode = 0
@@ -352,8 +354,8 @@ def test_add_book_endpoint_no_ids_returned(
 @patch('calibre_api.app.crud.os.path.exists', return_value=True)
 @patch('calibre_api.app.crud.subprocess.run')
 def test_add_book_endpoint_calibredb_cli_error(
-    client, mock_subprocess_run, mock_crud_os_path_exists, mock_main_os_path_exists,
-    mock_rmtree, mock_copyfileobj, mock_mkdtemp
+    mock_subprocess_run, mock_crud_os_path_exists, mock_main_os_path_exists,
+    mock_rmtree, mock_copyfileobj, mock_mkdtemp, client
 ):
     mock_process = MagicMock()
     mock_process.returncode = 1 # Error code
@@ -377,7 +379,7 @@ def test_add_book_endpoint_calibredb_cli_error(
 @patch('calibre_api.app.main.shutil.rmtree')
 @patch('calibre_api.app.crud.add_book') # Mock the whole crud function
 def test_add_book_endpoint_calibredb_exec_not_found(
-    client, mock_add_book_crud, mock_rmtree, mock_copyfileobj, mock_mkdtemp
+    mock_add_book_crud, mock_rmtree, mock_copyfileobj, mock_mkdtemp, client
 ):
     # Simulate FileNotFoundError for the calibredb executable itself
     mock_add_book_crud.side_effect = FileNotFoundError("calibredb not found here")
@@ -402,7 +404,7 @@ def test_add_book_endpoint_missing_file_upload(client):
     assert response.status_code == 422 # Unprocessable Entity
     json_response = response.json()
     assert json_response["detail"][0]["loc"] == ["body", "file"]
-    assert json_response["detail"][0]["msg"] == "field required"
+    assert json_response["detail"][0]["msg"] == "Field required"
 
 
 @patch('calibre_api.app.main.tempfile.mkdtemp', return_value='/tmp/mocktempdir')
@@ -410,7 +412,7 @@ def test_add_book_endpoint_missing_file_upload(client):
 @patch('calibre_api.app.main.shutil.rmtree')
 @patch('calibre_api.app.crud.add_book')
 def test_add_book_endpoint_value_error_from_crud(
-    client, mock_add_book_crud, mock_rmtree, mock_copyfileobj, mock_mkdtemp
+    mock_add_book_crud, mock_rmtree, mock_copyfileobj, mock_mkdtemp, client
 ):
     # For example, if crud.add_book raises ValueError because the temp file path isn't found
     # (though os.path.exists is mocked above, this tests the handler for other ValueErrors from crud)
@@ -440,7 +442,7 @@ def test_add_book_endpoint_value_error_from_crud(
 # --- Tests for DELETE /books/{book_id}/ endpoint ---
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_remove_book_endpoint_success(client, mock_subprocess_run):
+def test_remove_book_endpoint_success(mock_subprocess_run, client):
     book_id_to_remove = 42
     mock_process = MagicMock()
     mock_process.returncode = 0
@@ -462,7 +464,7 @@ def test_remove_book_endpoint_success(client, mock_subprocess_run):
     assert called_args[0] == expected_cmd
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_remove_book_endpoint_book_not_found(client, mock_subprocess_run):
+def test_remove_book_endpoint_book_not_found(mock_subprocess_run, client):
     book_id_not_found = 999
     mock_process = MagicMock()
     mock_process.returncode = 0 # remove_books --for-machine returns 0 even if book not found
@@ -494,7 +496,7 @@ def test_remove_book_endpoint_invalid_book_id(client):
     assert response.status_code == 422 # Unprocessable Entity from FastAPI
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_remove_book_endpoint_calibredb_cli_error(client, mock_subprocess_run):
+def test_remove_book_endpoint_calibredb_cli_error(mock_subprocess_run, client):
     book_id_error = 77
     mock_process = MagicMock()
     mock_process.returncode = 1 # CLI error
@@ -509,7 +511,7 @@ def test_remove_book_endpoint_calibredb_cli_error(client, mock_subprocess_run):
     assert "calibredb remove_books command failed with exit code 1" in json_response["detail"]
 
 @patch('calibre_api.app.crud.remove_book') # Mock the whole crud function
-def test_remove_book_endpoint_calibredb_exec_not_found(client, mock_remove_book_crud):
+def test_remove_book_endpoint_calibredb_exec_not_found(mock_remove_book_crud, client):
     book_id = 88
     # Simulate FileNotFoundError for the calibredb executable itself
     mock_remove_book_crud.side_effect = FileNotFoundError("calibredb (remove) not found")
@@ -520,7 +522,7 @@ def test_remove_book_endpoint_calibredb_exec_not_found(client, mock_remove_book_
     assert "calibredb command not found" in json_response["detail"]
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_remove_book_endpoint_calibredb_json_parse_error(client, mock_subprocess_run):
+def test_remove_book_endpoint_calibredb_json_parse_error(mock_subprocess_run, client):
     book_id_to_remove = 43
     mock_process = MagicMock()
     mock_process.returncode = 0
@@ -533,7 +535,7 @@ def test_remove_book_endpoint_calibredb_json_parse_error(client, mock_subprocess
     assert "Failed to parse JSON output from calibredb remove_books" in response.json()["detail"]
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_remove_book_endpoint_calibredb_ok_false_no_specific_error(client, mock_subprocess_run):
+def test_remove_book_endpoint_calibredb_ok_false_no_specific_error(mock_subprocess_run, client):
     book_id_to_remove = 44
     mock_process = MagicMock()
     mock_process.returncode = 0
@@ -547,7 +549,7 @@ def test_remove_book_endpoint_calibredb_ok_false_no_specific_error(client, mock_
     assert f"Calibredb failed to remove book ID {book_id_to_remove}, reason unspecified" in response.json()["detail"]
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_remove_book_endpoint_calibredb_ok_true_but_not_removed(client, mock_subprocess_run):
+def test_remove_book_endpoint_calibredb_ok_true_but_not_removed(mock_subprocess_run, client):
     book_id_to_remove = 45
     mock_process = MagicMock()
     mock_process.returncode = 0
@@ -564,7 +566,7 @@ def test_remove_book_endpoint_calibredb_ok_true_but_not_removed(client, mock_sub
 # --- Tests for PUT /books/{book_id}/metadata/ endpoint ---
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_set_metadata_endpoint_success(client, mock_subprocess_run):
+def test_set_metadata_endpoint_success(mock_subprocess_run, client):
     book_id_to_update = 123
     update_payload = {
         "title": "New Title",
@@ -601,7 +603,7 @@ def test_set_metadata_endpoint_success(client, mock_subprocess_run):
 
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_set_metadata_endpoint_book_not_found_or_no_changes(client, mock_subprocess_run):
+def test_set_metadata_endpoint_book_not_found_or_no_changes(mock_subprocess_run, client):
     book_id_not_found = 999
     update_payload = {"title": "Attempted Update"}
     # `calibredb set_metadata --for-machine` returns {} if book not found or no changes made
@@ -637,7 +639,7 @@ def test_set_metadata_endpoint_no_metadata_provided(client):
 
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_set_metadata_endpoint_calibredb_cli_error(client, mock_subprocess_run):
+def test_set_metadata_endpoint_calibredb_cli_error(mock_subprocess_run, client):
     book_id_error = 77
     update_payload = {"title": "Error Update"}
     mock_process = MagicMock()
@@ -653,7 +655,7 @@ def test_set_metadata_endpoint_calibredb_cli_error(client, mock_subprocess_run):
     assert "calibredb set_metadata command failed with exit code 1" in json_response["detail"]
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_set_metadata_endpoint_calibredb_cli_error_book_not_found_in_stderr(client, mock_subprocess_run):
+def test_set_metadata_endpoint_calibredb_cli_error_book_not_found_in_stderr(mock_subprocess_run, client):
     book_id_error = 78
     update_payload = {"title": "Error Update"}
     mock_process = MagicMock()
@@ -669,7 +671,7 @@ def test_set_metadata_endpoint_calibredb_cli_error_book_not_found_in_stderr(clie
 
 
 @patch('calibre_api.app.crud.set_book_metadata') # Mock the whole crud function
-def test_set_metadata_endpoint_calibredb_exec_not_found(client, mock_set_metadata_crud):
+def test_set_metadata_endpoint_calibredb_exec_not_found(mock_set_metadata_crud, client):
     book_id = 88
     update_payload = {"title": "Any Update"}
     mock_set_metadata_crud.side_effect = FileNotFoundError("calibredb (set_metadata) not found")
@@ -680,7 +682,7 @@ def test_set_metadata_endpoint_calibredb_exec_not_found(client, mock_set_metadat
 
 
 @patch('calibre_api.app.crud.subprocess.run')
-def test_set_metadata_endpoint_json_parse_error(client, mock_subprocess_run):
+def test_set_metadata_endpoint_json_parse_error(mock_subprocess_run, client):
     book_id = 89
     update_payload = {"title": "JSON Error Test"}
     mock_process = MagicMock()
@@ -721,7 +723,7 @@ def test_get_calibre_version_endpoint_not_found(mock_get_version, client):
     assert response.status_code == 503
     assert "Calibre command not found" in response.json()["detail"]
 
-@patch('calibre_api.app.main.calibre_cli.get_calibre_version', side_effect=CalibredbError("CLI failed")) # Using CalibredbError as a stand-in for CalibreCLIError for now
+@patch('calibre_api.app.main.calibre_cli.get_calibre_version', side_effect=CalibreCLIError("CLI failed", stderr="details"))
 def test_get_calibre_version_endpoint_cli_error(mock_get_version, client):
     # Adjust if CalibreCLIError is distinct and used in calibre_cli
     from calibre_api.app.calibre_cli import CalibreCLIError # Ensure this is the correct error type
@@ -968,7 +970,7 @@ def test_debug_test_build_endpoint(mock_run_test_build, client):
 @patch('calibre_api.app.main.shutil.copyfileobj')
 @patch('calibre_api.app.main.os.remove')
 @patch('calibre_api.app.main.calibre_cli.send_email_with_calibre_smtp')
-def test_send_email_endpoint(mock_send_email, mock_os_remove, mock_copyfileobj, mock_gettempdir, client):
+def test_send_email_endpoint(mock_send_email, mock_os_remove, mock_copyfileobj, mock_gettempdir, mock_os_path_join, client):
     mock_send_email.return_value = (True, "Email sent successfully.")
     email_payload = {
         "recipient_email": "to@example.com", "subject": "Hi", "body": "There",
@@ -986,24 +988,6 @@ def test_send_email_endpoint(mock_send_email, mock_os_remove, mock_copyfileobj, 
         attachment_path=None, smtp_username=None, smtp_password=None, # Defaults
         sender_email=None, reply_to_email=None
     )
-
-    # Test with attachment
-    mock_send_email.reset_mock()
-    mock_send_email.return_value = (True, "Email sent with attachment.")
-    response = client.post(
-        "/calibre/send-email/",
-        files={'attachment_file': ('attach.txt', BytesIO(b"attach"), 'text/plain')},
-        # When files are present, other payload needs to be in 'data' and might need careful formatting
-        # For simplicity, assume the SmtpSendRequest is sent as a JSON string part if client supports it.
-        # Or define individual Form fields. The current endpoint `request: SmtpSendRequest = Body(...)`
-        # implies Content-Type: application/json for the main payload, which conflicts with multipart/form-data for files.
-        # This endpoint structure needs review for mixed JSON body and file.
-        # A common way is all Form fields, or a JSON string part for the main model.
-        # Let's assume the test client sends SmtpSendRequest as a 'request' part for this test to proceed.
-        # This would require `request: SmtpSendRequest = Form(...)` or similar in endpoint.
-        # Given `Body(...)`, this test for attachment + JSON body is complex with TestClient.
-        # Skipping the attachment part of this specific test due to ambiguity of mixed Body and File.
-        # The unit test for calibre_cli.send_email_with_calibre_smtp covers attachment logic.
 
 
 # Test POST /ebook/check/
